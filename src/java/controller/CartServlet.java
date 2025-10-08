@@ -40,10 +40,7 @@ public class CartServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         HttpSession session = request.getSession();
-        Cart cart = (Cart) session.getAttribute("cart");
-        if (cart == null) {
-            cart = new Cart();
-        }
+        Cart cart = cartService.getCart(session);
         request.setAttribute("cart", cart);
         RequestDispatcher dispatcher = request.getRequestDispatcher("cart/cart.jsp");
         dispatcher.forward(request, response);
@@ -53,31 +50,42 @@ public class CartServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         HttpSession session = request.getSession();
-        Cart cart = (Cart) session.getAttribute("cart");
-        if (cart == null) {
-            cart = new Cart();
-        }
+        cartService.getCart(session); // ensure the cart exists in the session
 
         String action = request.getParameter("action");
-        int productId = Integer.parseInt(request.getParameter("productId"));
-        switch (action) {
-            case "add":
-                int quantity = Integer.parseInt(request.getParameter("quantity"));
-                Product product = productService.selectProduct(productId);
-                if (product != null) {
-                    cartService.addToCart(session, product, quantity);
-                }
-                break;
-            case "update":
-                quantity = Integer.parseInt(request.getParameter("quantity"));
-                cartService.updateQuantity(session, productId, quantity);
-                break;
-            case "remove":
-                cartService.removeFromCart(session, productId);
-                break;
+        if (action == null) {
+            action = "";
         }
 
-        session.setAttribute("cart", cart);
-        response.sendRedirect("cart/cart.jsp");
+        try {
+            switch (action) {
+                case "add": {
+                    int productId = Integer.parseInt(request.getParameter("productId"));
+                    int quantity = Integer.parseInt(request.getParameter("quantity"));
+                    Product product = productService.selectProduct(productId);
+                    if (product != null) {
+                        cartService.addToCart(session, product, quantity);
+                    }
+                    break;
+                }
+                case "update": {
+                    int productId = Integer.parseInt(request.getParameter("productId"));
+                    int quantity = Integer.parseInt(request.getParameter("quantity"));
+                    cartService.updateQuantity(session, productId, quantity);
+                    break;
+                }
+                case "remove": {
+                    int productId = Integer.parseInt(request.getParameter("productId"));
+                    cartService.removeFromCart(session, productId);
+                    break;
+                }
+                default:
+                    break;
+            }
+        } catch (NumberFormatException ex) {
+            // ignore malformed input and simply reload the cart page
+        }
+
+        response.sendRedirect(request.getContextPath() + "/carts");
     }
 }
